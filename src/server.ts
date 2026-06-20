@@ -1,74 +1,30 @@
 import Fastify, {type FastifyInstance, type RouteShorthandOptions} from "fastify";
+import fastifyCors from "@fastify/cors";
+import register_routes from "./routes.js";
+import { GeminiService } from "./llm_service.js";
+import dotenv from 'dotenv';
+
+dotenv.config()
 
 const server: FastifyInstance = Fastify({
-    logger: true
+    logger: {
+        level: "debug",
+    }
 });
 
-const opts: RouteShorthandOptions = {
-    schema:{
-        response:{
-            200:{
-                type: "object",
-                properties:{
-                    message: {
-                        type:"string"
-                    }
-                }
-            }
-        }
-    }
-};
+server.register(fastifyCors, {
+    origin: true,
+    credentials: true
+})
 
-const post_opts: RouteShorthandOptions = {
-    schema:{
-        body:{
-            type:"object",
-            properties:{
-                name:{
-                    type:"string",
-                },
-                age: {
-                    type: "number"
-                }
-            }
-        },
-        response:{
-            200:{
-                type:"object",
-                properties:{
-                    message:{
-                        type:"string",
-                        
-                    },
-                    data:{
-                        type: "object"
-                    },
-                }
-            },
-            500:{
-                type:"object",
-                properties:{
-                    message:{type:"string"}
-                }
-            }
-        }
-    }
+const apiKey = process.env.GOOGLE_API_KEY;
+if (!apiKey) {
+    console.error("No api key found.");
+    process.exit(1);
 }
 
-server.get("/", opts, async (request, response)=>{
-    response.send({message:"Hello world"});
-});
-
-server.post("/data", post_opts, async (request, response) =>{
-    try{
-        const data = await request.body;
-        console.log(typeof data)
-        response.send({message:"You send the following data", data: data});
-    } catch(err) {
-        server.log.error(err)
-        response.send({message:"some error occured"});
-    }
-})
+const geminiService = new GeminiService(apiKey);
+await register_routes(server, geminiService);
 
 try{
     await server.listen({port:8000});
