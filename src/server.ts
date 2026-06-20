@@ -18,12 +18,14 @@ server.register(fastifyCors, {
 })
 
 const apiKey = process.env.GOOGLE_API_KEY;
-if (!apiKey) {
+const model = process.env.MODEL_NAME;
+
+if (!apiKey || !model) {
     console.error("No api key found.");
     process.exit(1);
 }
 
-const geminiService = new GeminiService(apiKey);
+const geminiService = new GeminiService(apiKey, model);
 await register_routes(server, geminiService);
 
 try{

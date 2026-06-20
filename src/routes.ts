@@ -1,7 +1,6 @@
 import {type FastifyInstance, type FastifyRequest, type FastifyReply} from 'fastify';
 import { GeminiService } from './llm_service.js';
 import { LearningCardRequest, type ApiResponse, type validatedLLMResponse } from './types.js';
-import { success } from 'zod';
 
 
 export default async function register_routes(app: FastifyInstance, geminiService: GeminiService) {
@@ -34,11 +33,19 @@ export default async function register_routes(app: FastifyInstance, geminiServic
             
             const validatedRequest = validationResult.data;
 
-            const result = await geminiService.generate_concept(validatedRequest);
+            const conn = await Promise.all([
+                await geminiService.generate_concept(validatedRequest),
+                await geminiService.generate_svg(validatedRequest)
+            ])
 
             return response.code(200).send({
                 success: true,
-                data: result
+                data: {
+                    ...conn[0],
+                    visuals: {
+                        ...conn[1]
+                    }
+                }
             } as ApiResponse<validatedLLMResponse>)
 
         }catch(err){
