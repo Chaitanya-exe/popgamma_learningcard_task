@@ -4,7 +4,9 @@ import {
     type validatedLLMResponse,
     LearningCardResponse,
     type validatedSvg,
-    svgResponse
+    svgResponse,
+    type ValidatedBonus,
+    BonusResponse
  } from "./types.js";
 
 export class GeminiService {
@@ -18,48 +20,103 @@ export class GeminiService {
     }
 
     async generate_concept(request: validatedSchema): Promise<validatedLLMResponse> {
-        const prompt = this.build_prompt(request);
-
-        const response = await this.client.models.generateContent({
-            model: this.model,
-            contents: prompt,
-            config:{
-                responseMimeType: 'application/json',
-                responseJsonSchema: LearningCardResponse.toJSONSchema()
+        
+        try {
+            
+            const prompt = this.build_prompt(request);
+    
+            const response = await this.client.models.generateContent({
+                model: this.model,
+                contents: prompt,
+                config:{
+                    responseMimeType: 'application/json',
+                    responseJsonSchema: LearningCardResponse.toJSONSchema()
+                }
+            })
+            const text = response.text;
+    
+            if (!text) {
+                throw new Error("Gemini returned empty response");
             }
-        })
-        const text = response.text;
-
-        if (!text) {
-            throw new Error("Gemini returned empty response");
+    
+            const parsed = JSON.parse(text);
+            return LearningCardResponse.parse(parsed);
+        } catch (error) {
+            return LearningCardResponse.parse({
+                title: "",
+                description: "",
+                latex: "",
+                concept: ""
+            })
         }
-
-        const parsed = JSON.parse(text);
-        return LearningCardResponse.parse(parsed);
+        
     }
 
     async generate_svg(request: validatedSchema): Promise<validatedSvg> {
-        const prompt = this.build_svg_prompt(request);
-
-        const response = await this.client.models.generateContent({
-            model: this.model,
-            contents: prompt,
-            config:{
-                responseMimeType: 'application/json',
-                responseJsonSchema: svgResponse.toJSONSchema()
+        
+        try {
+            
+            const prompt = this.build_svg_prompt(request);
+    
+            const response = await this.client.models.generateContent({
+                model: this.model,
+                contents: prompt,
+                config:{
+                    responseMimeType: 'application/json',
+                    responseJsonSchema: svgResponse.toJSONSchema()
+                }
+            });
+    
+            const text = response.text;
+    
+            if (!text) {
+                throw new Error("gemini returned empty response");
             }
-        });
-
-        const text = response.text;
-
-        if (!text) {
-            throw new Error("gemini returned empty response");
+    
+            const parsed = JSON.parse(text);
+            console.log(parsed.svgContent) 
+            return svgResponse.parse(parsed);
+        } catch (error) {
+            return svgResponse.parse({
+                title: "",
+                svgContent: "",
+                description: ""
+            })
         }
 
-        const parsed = JSON.parse(text);
-        console.log(parsed.svgContent) 
-        return svgResponse.parse(parsed);
 
+    }
+
+    async generate_bonus(request: validatedSchema): Promise<ValidatedBonus> {
+        
+        try {
+            
+            const prompt = this.build_bonus_prompt(request);
+    
+            const response = await this.client.models.generateContent({
+                model: this.model,
+                contents: prompt,
+                config: {
+                    responseMimeType: 'application/json',
+                    responseJsonSchema: BonusResponse.toJSONSchema()
+                }
+            })
+    
+            const text = response.text;
+    
+            if (!text) {
+                throw new Error("Gemini returned empty response");
+            } 
+    
+            const parsed = JSON.parse(text);
+            return BonusResponse.parse(parsed);
+        } catch (error) {
+            return BonusResponse.parse({
+                analogy: "",
+                fact: "",
+                questions: []
+            })
+        }
     }
 
     build_prompt(request: validatedSchema): string{
@@ -122,6 +179,39 @@ Your task is to generate a visual aid/diagram in SVG format, along with its meta
     }
 
     build_bonus_prompt(request: validatedSchema): string {
-        return ``
+        return `You are an expert educational content generator tailored for CBSE, ICSE, and IB school boards.
+Your task is to generate supplemental interactive and contextual content for a learning card based on a specific academic concept.
+
+### Input Parameters:
+{
+    "grade": "${request.grade}",
+    "board": "${request.board}",
+    "concept": "${request.concept}"
+}
+
+### Execution Rules:
+1. Tone & Accessibility: Match the vocabulary and complexity perfectly to the specified grade level. The language should be clear, highly engaging, and student-friendly.
+2. Analogy Guidance: Create a relatable, vivid comparison to an everyday object or scenario that bridges the gap between abstract theory and a student's lived experience.
+3. Fact Guidance: Provide a surprising, memorable "did you know?" style fun fact that demonstrates a tangible, exciting real-world application of the concept.
+4. Questions Guidance: 
+   - Provide exactly 2 short, highly targeted multiple-choice questions that test understanding of the core concept.
+   - Each question must have exactly 3 distinct, plausible options (no "all of the above" or obviously silly filler options).
+5. Output Format: Return ONLY a valid JSON object. Do not wrap it in markdown code blocks (like json). Do not add any introductory or concluding text.
+
+### Required JSON Structure:
+{
+    "analogy": "A simple, creative explanation of the concept using a relatable everyday comparison.",
+    "fact": "A fascinating fun fact about the concept highlighting its real-world application or impact.",
+    "questions": [
+        {
+            "question": "Clear question testing comprehension of the concept.",
+            "options": ["Option A", "Option B", "Option C"]
+        },
+        {
+            "question": "Another clear, conceptually different question testing the concept.",
+            "options": ["Option A", "Option B", "Option C"]
+        }
+    ]
+}`
     }
 }

@@ -32,3 +32,15 @@ export const svgResponse = z.object({
     description: z.string()
 })
 export type validatedSvg = z.infer<typeof svgResponse>
+
+const question = z.object({
+    question: z.string(),
+    options: z.array(z.string()).length(3)
+})
+
+export const BonusResponse = z.object({
+    fact: z.string(),
+    analogy: z.string(),
+    questions: z.array(question)
+})
+export type ValidatedBonus = z.infer<typeof BonusResponse>
