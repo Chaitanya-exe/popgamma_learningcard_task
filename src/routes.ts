@@ -33,7 +33,7 @@ export default async function register_routes(app: FastifyInstance, geminiServic
             
             const validatedRequest = validationResult.data;
 
-            const conn = await Promise.all([
+            const [concept, visuals, bonus] = await Promise.all([
                 await geminiService.generate_concept(validatedRequest),
                 await geminiService.generate_svg(validatedRequest),
                 await geminiService.generate_bonus(validatedRequest)
@@ -42,12 +42,12 @@ export default async function register_routes(app: FastifyInstance, geminiServic
             return response.code(200).send({
                 success: true,
                 data: {
-                    ...conn[0],
+                    ...concept,
                     visuals: {
-                        ...conn[1]
+                        ...visuals
                     },
                     bonus: {
-                        ...conn[2]
+                        ...bonus
                     }
                 }
             } as ApiResponse<validatedLLMResponse>)
